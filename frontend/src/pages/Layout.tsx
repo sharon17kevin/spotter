@@ -6,9 +6,9 @@ const Layout = () => {
   return (
     <div className="bg-blue-300">
       <Navbar />
-      <div>
+      {/* <div>
         <Outlet />
-      </div>
+      </div> */}
       <ScrollToTop />
     </div>
   );

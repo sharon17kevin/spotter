@@ -1,4 +1,4 @@
-import { Circle, Heart, Menu, Truck, User } from "lucide-react";
+import { Circle, MenuIcon, Truck} from "lucide-react";
 import {
   motion,
   useMotionValueEvent,
@@ -104,17 +104,17 @@ const Navbar = () => {
               </Link>
             </div>
           </div>
-          <div className="hidden lg:flex font-darkerGrotesque text-base items-center justify-items-end space-x-2">
+          {/* <div className="hidden lg:flex font-darkerGrotesque text-base items-center justify-items-end space-x-2">
             
-          </div>
+          </div> */}
 
           {/* Mobile Menu Button */}
-          <div className="lg:hidden flex items-center">
+          <div className="lg:hidden flex items-center bg-white">
             <button
-              onClick={openModal}
+              onClick={()=> { console.log("Menu clicked");}}
               className="text-white hover:text-gray-200 focus:outline-none"
             >
-              {<Menu className="h-6 w-6" />}
+              {<MenuIcon className="h-6 w-6"/>}
             </button>
           </div>
         </div>
