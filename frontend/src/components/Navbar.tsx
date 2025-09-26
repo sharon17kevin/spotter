@@ -109,9 +109,9 @@ const Navbar = () => {
           </div> */}
 
           {/* Mobile Menu Button */}
-          <div className="lg:hidden flex items-center bg-white">
+          <div className="lg:hidden flex items-center">
             <button
-              onClick={()=> { console.log("Menu clicked");}}
+              onClick={openModal}
               className="text-white hover:text-gray-200 focus:outline-none"
             >
               {<MenuIcon className="h-6 w-6"/>}

@@ -4,11 +4,11 @@ import Navbar from "../components/Navbar";
 
 const Layout = () => {
   return (
-    <div className="bg-blue-300">
+    <div className="bg-primary">
       <Navbar />
-      {/* <div>
+      <div>
         <Outlet />
-      </div> */}
+      </div>
       <ScrollToTop />
     </div>
   );
