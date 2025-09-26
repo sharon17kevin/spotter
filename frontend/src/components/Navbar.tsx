@@ -65,7 +65,7 @@ const Navbar = () => {
                 />
               </Link>
               <Link
-                to="/gallery"
+                to="/map"
                 className={`group pt-1 pb-2 px-3 rounded-full items-center justify-center space-x-1 ${
                   location.pathname === "/gallery"
                     ? "bg-white/30"
@@ -77,14 +77,14 @@ const Navbar = () => {
                   width={10}
                   height={10}
                   className={`inline-block fill-white ${
-                    location.pathname === "/gallery"
+                    location.pathname === "/map"
                       ? "opacity-100"
                       : "opacity-0 group-hover:opacity-100"
                   }`}
                 />
               </Link>
               <Link
-                to="/order"
+                to="/log"
                 className={`group pt-1 pb-2 px-3 rounded-full items-center justify-center space-x-1 ${
                   location.pathname === "/order"
                     ? "bg-white/30"
@@ -96,7 +96,7 @@ const Navbar = () => {
                   width={10}
                   height={10}
                   className={`inline-block fill-white ${
-                    location.pathname === "/order"
+                    location.pathname === "/log"
                       ? "opacity-100"
                       : "opacity-0 group-hover:opacity-100"
                   }`}

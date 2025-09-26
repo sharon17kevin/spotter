@@ -1,13 +1,13 @@
 import { useState } from "react";
 import type { TripInput } from "../types";
-import { MapPin, User, Truck, Calendar, Notebook } from "lucide-react";
+import { User, Truck, Calendar, Notebook } from "lucide-react";
 
 interface TripInputFormProps {
   onSubmit: (tripInput: TripInput) => void;
   loading: boolean;
 }
 
-const TripInput: React.FC<TripInputFormProps> = ({ onSubmit, loading }) => {
+const TripInputForm: React.FC<TripInputFormProps> = ({ onSubmit, loading }) => {
 
   const [formData, setFormData] = useState<TripInput>({
     currentLocation: { lat: 0, lng: 0, address: '' },
@@ -235,4 +235,4 @@ const TripInput: React.FC<TripInputFormProps> = ({ onSubmit, loading }) => {
   );
 };
 
-export default TripInput;
+export default TripInputForm;
