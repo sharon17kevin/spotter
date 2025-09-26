@@ -4,29 +4,38 @@ import { User, Truck, Calendar, Notebook } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
-
-interface TripInputFormProps {
-  onSubmit: (tripInput: TripInput) => void;
-  loading: boolean;
-}
+import useCreateTrip from "../hooks/useTrip";
 
 // Define Zod schema
 const schema = z.object({
-  driverName: z.string().min(2, "Name must be at least 2 characters"),
-  coDriverName: z.string().min(2, "Name must be at least 2 characters"),
-  truckNumber: z.string().min(2, "Name must be at least 2 characters"),
-  trailerNumber: z.string().min(2, "Name must be at least 2 characters").optional(),
-  startDate: z.string().refine((date) => !isNaN(Date.parse(date)), { message: "Invalid date format" }),
-  currentCycleUsed: z.number().min(0, "Must be equal to or greater than 0").max(70, "Must be less than or equal to 70"),
-  currentLocation: z.string().min(5, "Please enter a valid address"),
-  pickupLocation: z.string().min(5, "Please enter a valid address"),
-  dropoffLocation: z.string().min(5, "Please enter a valid address"),
+  currentLocation: z.object({
+    lat: z.number().min(0.0001, "Invalid latitude"),
+    lng: z.number(),
+    address: z.string().nonempty(),
+  }),
+  pickupLocation: z.object({
+    lat: z.number().min(0.0001, "Invalid latitude"),
+    lng: z.number(),
+    address: z.string().nonempty(),
+  }),
+  dropoffLocation: z.object({
+    lat: z.number().min(0.0001, "Invalid latitude"),
+    lng: z.number(),
+    address: z.string().nonempty(),
+  }),
+  currentCycleUsed: z.number(),
+  driverName: z.string().nonempty(),
+  coDriverName: z.string().optional(),
+  truckNumber: z.string().nonempty(),
+  trailerNumber: z.string().optional(),
+  startDate: z.string(),
 });
+
 
 // Infer TypeScript type from schema
 type FormData = z.infer<typeof schema>;
 
-const TripInputForm: React.FC<TripInputFormProps> = ({ onSubmit, loading }) => {
+const TripInputForm = () => {
   const {
     register,
     handleSubmit,
@@ -34,6 +43,28 @@ const TripInputForm: React.FC<TripInputFormProps> = ({ onSubmit, loading }) => {
   } = useForm<FormData>({
     resolver: zodResolver(schema),
   });
+
+  const createTrip = useCreateTrip();
+
+  // This is called only if validation passes
+  const onSubmit = async (data: FormData) => {
+    // Extra manual validation if needed
+    if (
+      data.currentLocation.lat === 0 ||
+      data.pickupLocation.lat === 0 ||
+      data.dropoffLocation.lat === 0
+    ) {
+      alert("Please enter valid addresses for all locations");
+      return;
+    }
+
+    try {
+      const result = await createTrip.mutateAsync(data);
+      console.log("Trip created:", result);
+    } catch (err) {
+      console.error("Error creating trip:", err);
+    }
+  };
 
   const [formData, setFormData] = useState<TripInput>({
     currentLocation: { lat: 0, lng: 0, address: "" },
@@ -101,10 +132,6 @@ const TripInputForm: React.FC<TripInputFormProps> = ({ onSubmit, loading }) => {
     onSubmit(formData);
   };
 
-  const buttonSubmit = (data: FormData) => {
-    console.log("Form Data:", data);
-  };
-
   return (
     <div className=" rounded-lg text-white shadow-lg p-6">
       <h2 className="text-4xl font-semibold font-darkerGrotesque mb-6 flex items-center">
@@ -113,7 +140,7 @@ const TripInputForm: React.FC<TripInputFormProps> = ({ onSubmit, loading }) => {
       </h2>
 
       <form
-        onSubmit={handleSubmit(buttonSubmit)}
+        onSubmit={handleSubmit(onSubmit)}
         className="space-y-6 font-bricolageGrotesque"
       >
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -265,10 +292,10 @@ const TripInputForm: React.FC<TripInputFormProps> = ({ onSubmit, loading }) => {
 
         <button
           type="submit"
-          disabled={loading}
+          disabled={createTrip.isPending}
           className="w-full bg-secondary text-white py-3 px-6 rounded-lg hover:bg-gray-600 transition-colors duration-200 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          {loading ? "Planning Route..." : "Plan Route & Generate ELD Logs"}
+          {createTrip.isPending ? "Planning Route..." : "Plan Route & Generate ELD Logs"}
         </button>
       </form>
     </div>
