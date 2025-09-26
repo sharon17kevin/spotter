@@ -1,12 +1,8 @@
-import { Circle, MenuIcon, Truck} from "lucide-react";
-import {
-  motion,
-  useMotionValueEvent,
-  useScroll
-} from "motion/react";
+import { Circle, MenuIcon, Truck } from "lucide-react";
+import { motion, useMotionValueEvent, useScroll } from "motion/react";
 import { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { useNavbarModalStore } from "../zustand/useNavbarModalStore";
+import { useNavbarModalStore } from "../zustand/navbarModalStore";
 
 const Navbar = () => {
   const { openModal } = useNavbarModalStore();
@@ -114,7 +110,7 @@ const Navbar = () => {
               onClick={openModal}
               className="text-white hover:text-gray-200 focus:outline-none"
             >
-              {<MenuIcon className="h-6 w-6"/>}
+              {<MenuIcon className="h-6 w-6" />}
             </button>
           </div>
         </div>

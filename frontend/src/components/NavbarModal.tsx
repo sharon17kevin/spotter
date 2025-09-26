@@ -1,6 +1,6 @@
 import { Truck, X } from "lucide-react";
 import { useEffect } from "react";
-import { useNavbarModalStore } from "../zustand/useNavbarModalStore";
+import { useNavbarModalStore } from "../zustand/navbarModalStore";
 
 const NavbarModal = () => {
   const { isOpen, closeModal } = useNavbarModalStore();

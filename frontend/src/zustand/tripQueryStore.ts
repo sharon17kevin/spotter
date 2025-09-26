@@ -6,7 +6,7 @@ interface TripStore {
   setTripPlan: (tripPlan: TripPlan) => void;
 }
 
-export const useTripStore = create<TripStore>((set) => ({
+export const useTripQueryStore = create<TripStore>((set) => ({
   tripPlan: {} as TripPlan,
   setTripPlan: (tripPlan: TripPlan) => set({ tripPlan }),
 }));
