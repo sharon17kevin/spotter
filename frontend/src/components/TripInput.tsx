@@ -1,30 +1,58 @@
 import { useState } from "react";
 import type { TripInput } from "../types";
 import { User, Truck, Calendar, Notebook } from "lucide-react";
+import { useForm } from "react-hook-form";
+import { z } from "zod";
+import { zodResolver } from "@hookform/resolvers/zod";
 
 interface TripInputFormProps {
   onSubmit: (tripInput: TripInput) => void;
   loading: boolean;
 }
 
+// Define Zod schema
+const schema = z.object({
+  driverName: z.string().min(2, "Name must be at least 2 characters"),
+  coDriverName: z.string().min(2, "Name must be at least 2 characters"),
+  truckNumber: z.string().min(2, "Name must be at least 2 characters"),
+  trailerNumber: z.string().min(2, "Name must be at least 2 characters").optional(),
+  startDate: z.string().refine((date) => !isNaN(Date.parse(date)), { message: "Invalid date format" }),
+  currentCycleUsed: z.number().min(0, "Must be equal to or greater than 0").max(70, "Must be less than or equal to 70"),
+  currentLocation: z.string().min(5, "Please enter a valid address"),
+  pickupLocation: z.string().min(5, "Please enter a valid address"),
+  dropoffLocation: z.string().min(5, "Please enter a valid address"),
+});
+
+// Infer TypeScript type from schema
+type FormData = z.infer<typeof schema>;
+
 const TripInputForm: React.FC<TripInputFormProps> = ({ onSubmit, loading }) => {
+  const {
+    register,
+    handleSubmit,
+    formState: { errors },
+  } = useForm<FormData>({
+    resolver: zodResolver(schema),
+  });
 
   const [formData, setFormData] = useState<TripInput>({
-    currentLocation: { lat: 0, lng: 0, address: '' },
-    pickupLocation: { lat: 0, lng: 0, address: '' },
-    dropoffLocation: { lat: 0, lng: 0, address: '' },
+    currentLocation: { lat: 0, lng: 0, address: "" },
+    pickupLocation: { lat: 0, lng: 0, address: "" },
+    dropoffLocation: { lat: 0, lng: 0, address: "" },
     currentCycleUsed: 0,
-    driverName: '',
-    coDriverName: '',
-    truckNumber: '',
-    trailerNumber: '',
-    startDate: new Date().toISOString().split('T')[0],
+    driverName: "",
+    coDriverName: "",
+    truckNumber: "",
+    trailerNumber: "",
+    startDate: new Date().toISOString().split("T")[0],
   });
 
   const geocodeAddress = async (address: string) => {
     try {
       const response = await fetch(
-        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(address)}&limit=1`
+        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(
+          address
+        )}&limit=1`
       );
       const data = await response.json();
       if (data.length > 0) {
@@ -35,35 +63,46 @@ const TripInputForm: React.FC<TripInputFormProps> = ({ onSubmit, loading }) => {
         };
       }
     } catch (error) {
-      console.error('Geocoding error:', error);
+      console.error("Geocoding error:", error);
     }
     return null;
   };
 
-  const handleAddressChange = async (field: 'currentLocation' | 'pickupLocation' | 'dropoffLocation', address: string) => {
-    setFormData(prev => ({
+  const handleAddressChange = async (
+    field: "currentLocation" | "pickupLocation" | "dropoffLocation",
+    address: string
+  ) => {
+    setFormData((prev) => ({
       ...prev,
-      [field]: { ...prev[field], address }
+      [field]: { ...prev[field], address },
     }));
 
     if (address.length > 5) {
       const coords = await geocodeAddress(address);
       if (coords) {
-        setFormData(prev => ({
+        setFormData((prev) => ({
           ...prev,
-          [field]: coords
+          [field]: coords,
         }));
       }
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleFormSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (formData.currentLocation.lat === 0 || formData.pickupLocation.lat === 0 || formData.dropoffLocation.lat === 0) {
-      alert('Please enter valid addresses for all locations');
+    if (
+      formData.currentLocation.lat === 0 ||
+      formData.pickupLocation.lat === 0 ||
+      formData.dropoffLocation.lat === 0
+    ) {
+      alert("Please enter valid addresses for all locations");
       return;
     }
     onSubmit(formData);
+  };
+
+  const buttonSubmit = (data: FormData) => {
+    console.log("Form Data:", data);
   };
 
   return (
@@ -73,7 +112,10 @@ const TripInputForm: React.FC<TripInputFormProps> = ({ onSubmit, loading }) => {
         Trip Planning
       </h2>
 
-      <form onSubmit={handleSubmit} className="space-y-6 font-bricolageGrotesque">
+      <form
+        onSubmit={handleSubmit(buttonSubmit)}
+        className="space-y-6 font-bricolageGrotesque"
+      >
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div>
             <label className="block text-sm font-medium  mb-2">
@@ -82,13 +124,13 @@ const TripInputForm: React.FC<TripInputFormProps> = ({ onSubmit, loading }) => {
             </label>
             <input
               type="text"
-              value={formData.driverName}
-              onChange={(e) =>
-                setFormData({ ...formData, driverName: e.target.value })
-              }
+              {...register("driverName")}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
               required
             />
+            {errors.driverName && (
+              <p className="text-red-500">{errors.driverName.message}</p>
+            )}
           </div>
 
           <div>
@@ -97,12 +139,13 @@ const TripInputForm: React.FC<TripInputFormProps> = ({ onSubmit, loading }) => {
             </label>
             <input
               type="text"
-              value={formData.coDriverName}
-              onChange={(e) =>
-                setFormData({ ...formData, coDriverName: e.target.value })
-              }
+              {...register("coDriverName")}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              required
             />
+            {errors.coDriverName && (
+              <p className="text-red-500">{errors.coDriverName.message}</p>
+            )}
           </div>
 
           <div>
@@ -112,13 +155,13 @@ const TripInputForm: React.FC<TripInputFormProps> = ({ onSubmit, loading }) => {
             </label>
             <input
               type="text"
-              value={formData.truckNumber}
-              onChange={(e) =>
-                setFormData({ ...formData, truckNumber: e.target.value })
-              }
+              {...register("truckNumber")}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
               required
             />
+            {errors.truckNumber && (
+              <p className="text-red-500">{errors.truckNumber.message}</p>
+            )}
           </div>
 
           <div>
@@ -127,12 +170,12 @@ const TripInputForm: React.FC<TripInputFormProps> = ({ onSubmit, loading }) => {
             </label>
             <input
               type="text"
-              value={formData.trailerNumber}
-              onChange={(e) =>
-                setFormData({ ...formData, trailerNumber: e.target.value })
-              }
+              {...register("trailerNumber")}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
+            {errors.trailerNumber && (
+              <p className="text-red-500">{errors.trailerNumber.message}</p>
+            )}
           </div>
 
           <div>
@@ -142,13 +185,13 @@ const TripInputForm: React.FC<TripInputFormProps> = ({ onSubmit, loading }) => {
             </label>
             <input
               type="date"
-              value={formData.startDate}
-              onChange={(e) =>
-                setFormData({ ...formData, startDate: e.target.value })
-              }
+              {...register("startDate")}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
               required
             />
+            {errors.startDate && (
+              <p className="text-red-500">{errors.startDate.message}</p>
+            )}
           </div>
 
           <div>
@@ -160,16 +203,13 @@ const TripInputForm: React.FC<TripInputFormProps> = ({ onSubmit, loading }) => {
               min="0"
               max="70"
               step="0.25"
-              value={formData.currentCycleUsed}
-              onChange={(e) =>
-                setFormData({
-                  ...formData,
-                  currentCycleUsed: Number(e.target.value),
-                })
-              }
+              {...register("currentCycleUsed", { valueAsNumber: true })}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
               required
             />
+            {errors.currentCycleUsed && (
+              <p className="text-red-500">{errors.currentCycleUsed.message}</p>
+            )}
           </div>
         </div>
 
@@ -180,14 +220,14 @@ const TripInputForm: React.FC<TripInputFormProps> = ({ onSubmit, loading }) => {
             </label>
             <input
               type="text"
-              value={formData.currentLocation.address}
-              onChange={(e) =>
-                handleAddressChange("currentLocation", e.target.value)
-              }
+              {...register("currentLocation")}
               placeholder="Enter current address or city, state"
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
               required
             />
+            {errors.currentLocation && (
+              <p className="text-red-500">{errors.currentLocation.message}</p>
+            )}
           </div>
 
           <div>
@@ -196,14 +236,14 @@ const TripInputForm: React.FC<TripInputFormProps> = ({ onSubmit, loading }) => {
             </label>
             <input
               type="text"
-              value={formData.pickupLocation.address}
-              onChange={(e) =>
-                handleAddressChange("pickupLocation", e.target.value)
-              }
+              {...register("pickupLocation")}
               placeholder="Enter pickup address or city, state"
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
               required
             />
+            {errors.pickupLocation && (
+              <p className="text-red-500">{errors.pickupLocation.message}</p>
+            )}
           </div>
 
           <div>
@@ -212,14 +252,14 @@ const TripInputForm: React.FC<TripInputFormProps> = ({ onSubmit, loading }) => {
             </label>
             <input
               type="text"
-              value={formData.dropoffLocation.address}
-              onChange={(e) =>
-                handleAddressChange("dropoffLocation", e.target.value)
-              }
+              {...register("dropoffLocation")}
               placeholder="Enter delivery address or city, state"
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
               required
             />
+            {errors.dropoffLocation && (
+              <p className="text-red-500">{errors.dropoffLocation.message}</p>
+            )}
           </div>
         </div>
 
