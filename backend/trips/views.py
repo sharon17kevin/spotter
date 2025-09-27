@@ -10,6 +10,8 @@ from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.lib import colors
 from django.http import HttpResponse
 
+from .models import TripPlan
+
 @api_view(['POST'])
 def plan_trip(request):
     try:
@@ -146,51 +148,65 @@ def plan_trip(request):
                 'gridData': {'timeBlocks': day_timeline},
                 'remarks': f'Trip from {current_loc} to {pickup_loc} to {dropoff_loc}, {total_distance_miles:.1f} miles.'
             })
-
-        return Response({
+        
+        response_data = {
             'route': {'points': points, 'stops': stops},
             'timeline': timeline,
             'logs': logs,
             'total_distance_miles': total_distance_miles,
-            'total_time_hours': total_driving_hours + 2  # + pickup/dropoff
-        }, status=status.HTTP_200_OK)
+            'total_time_hours': total_driving_hours + 2
+        }
+          
+        TripPlan.objects.create(
+            driver_name=data.get("driver_name"),
+            co_driver_name=data.get("co_driver_name"),
+            truck_number=data.get("truck_number"),
+            trailer_number=data.get("trailer_number"),
+            start_date=data.get("start_date"),
+            current_cycle_used=current_cycle,
+            plan_data=response_data
+        )
+
+        return Response(response_data, status=status.HTTP_200_OK)
     except Exception as e:
         return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
 @api_view(['GET'])
-def generate_log_pdf(request, day):
-    response = HttpResponse(content_type='application/pdf')
-    response['Content-Disposition'] = f'attachment; filename="log_day_{day}.pdf"'
-    doc = SimpleDocTemplate(response, pagesize=letter)
-    styles = getSampleStyleSheet()
-    story = []
+def generate_log_pdf(request, trip_id, day):
+    try:
+        trip = TripPlan.objects.get(id=trip_id)
+        plan = trip.plan_data
+        logs = plan.get("logs", [])
 
-    # Header
-    story.append(Paragraph(f"Driver's Daily Log - Day {day}", styles['Heading1']))
-    story.append(Spacer(1, 12))
+        # Find the day log
+        day_log = next((log for log in logs if log["day"] == day), None)
+        if not day_log:
+            return Response({"error": "Day log not found"}, status=404)
 
-    # Table for 24-hour grid (simplified)
-    data = [['Time', 'Status']]
-    for hour in range(24):
-        data.append([f"{hour}:00", "Off Duty"])  # Mock; replace with timeline data
-    table = Table(data, colWidths=[100, 400])
-    table.setStyle([
-        ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
-        ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
-        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-        ('FONTSIZE', (0, 0), (-1, 0), 14),
-        ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
-        ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
-        ('TEXTCOLOR', (0, 1), (-1, -1), colors.black),
-        ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
-        ('FONTSIZE', (0, 1), (-1, -1), 12),
-    ])
-    story.append(table)
-    story.append(Spacer(1, 12))
+        response = HttpResponse(content_type='application/pdf')
+        response['Content-Disposition'] = f'attachment; filename="log_day_{day}.pdf"'
+        doc = SimpleDocTemplate(response, pagesize=letter)
+        styles = getSampleStyleSheet()
+        story = []
 
-    # Remarks
-    story.append(Paragraph("Remarks: Sample trip, rest included.", styles['Normal']))
+        story.append(Paragraph(f"Driver's Daily Log - Day {day}", styles['Heading1']))
+        story.append(Paragraph(f"Driver: {trip.driver_name}", styles['Normal']))
+        story.append(Paragraph(f"Truck: {trip.truck_number}", styles['Normal']))
+        story.append(Spacer(1, 12))
 
-    doc.build(story)
-    return response
+        # Build table from saved time blocks
+        data = [['Start', 'End', 'Status']]
+        for block in day_log["gridData"]["timeBlocks"]:
+            data.append([block["start"], block["end"], block["status"]])
+
+        table = Table(data, colWidths=[100, 100, 300])
+        story.append(table)
+        story.append(Spacer(1, 12))
+
+        story.append(Paragraph(day_log["remarks"], styles['Normal']))
+
+        doc.build(story)
+        return response
+
+    except TripPlan.DoesNotExist:
+        return Response({"error": "Trip not found"}, status=404)
