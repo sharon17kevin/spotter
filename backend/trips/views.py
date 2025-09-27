@@ -2,6 +2,7 @@ from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from rest_framework import status
 from datetime import datetime, timedelta
+from django.utils.timezone import now
 import requests
 from reportlab.lib.pagesizes import letter
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table
@@ -50,7 +51,7 @@ def plan_trip(request):
         # HOS Timeline Calculation
         timeline = []
         stops = []
-        current_time = datetime(2025, 9, 27, 1, 8)  # Current time: 01:08 AM WAT
+        current_time = now()
         day = 1
         driving_today = 0
         on_duty_today = 0

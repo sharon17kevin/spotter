@@ -1,10 +1,9 @@
-import { useState } from "react";
-import type { TripInput } from "../types";
-import { User, Truck, Calendar, Notebook } from "lucide-react";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { Calendar, Notebook, Truck, User } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
-import { zodResolver } from "@hookform/resolvers/zod";
 import useCreateTrip from "../hooks/useTrip";
+import NominatimLocationInput from "./NomatimLocationInput";
 
 // Define Zod schema
 const schema = z.object({
@@ -31,7 +30,6 @@ const schema = z.object({
   startDate: z.string(),
 });
 
-
 // Infer TypeScript type from schema
 type FormData = z.infer<typeof schema>;
 
@@ -39,6 +37,7 @@ const TripInputForm = () => {
   const {
     register,
     handleSubmit,
+    setValue,
     formState: { errors },
   } = useForm<FormData>({
     resolver: zodResolver(schema),
@@ -64,72 +63,6 @@ const TripInputForm = () => {
     } catch (err) {
       console.error("Error creating trip:", err);
     }
-  };
-
-  const [formData, setFormData] = useState<TripInput>({
-    currentLocation: { lat: 0, lng: 0, address: "" },
-    pickupLocation: { lat: 0, lng: 0, address: "" },
-    dropoffLocation: { lat: 0, lng: 0, address: "" },
-    currentCycleUsed: 0,
-    driverName: "",
-    coDriverName: "",
-    truckNumber: "",
-    trailerNumber: "",
-    startDate: new Date().toISOString().split("T")[0],
-  });
-
-  const geocodeAddress = async (address: string) => {
-    try {
-      const response = await fetch(
-        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(
-          address
-        )}&limit=1`
-      );
-      const data = await response.json();
-      if (data.length > 0) {
-        return {
-          lat: parseFloat(data[0].lat),
-          lng: parseFloat(data[0].lon),
-          address: data[0].display_name,
-        };
-      }
-    } catch (error) {
-      console.error("Geocoding error:", error);
-    }
-    return null;
-  };
-
-  const handleAddressChange = async (
-    field: "currentLocation" | "pickupLocation" | "dropoffLocation",
-    address: string
-  ) => {
-    setFormData((prev) => ({
-      ...prev,
-      [field]: { ...prev[field], address },
-    }));
-
-    if (address.length > 5) {
-      const coords = await geocodeAddress(address);
-      if (coords) {
-        setFormData((prev) => ({
-          ...prev,
-          [field]: coords,
-        }));
-      }
-    }
-  };
-
-  const handleFormSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (
-      formData.currentLocation.lat === 0 ||
-      formData.pickupLocation.lat === 0 ||
-      formData.dropoffLocation.lat === 0
-    ) {
-      alert("Please enter valid addresses for all locations");
-      return;
-    }
-    onSubmit(formData);
   };
 
   return (
@@ -241,53 +174,24 @@ const TripInputForm = () => {
         </div>
 
         <div className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium mb-2">
-              Current Location
-            </label>
-            <input
-              type="text"
-              {...register("currentLocation")}
-              placeholder="Enter current address or city, state"
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-              required
-            />
-            {errors.currentLocation && (
-              <p className="text-red-500">{errors.currentLocation.message}</p>
-            )}
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium mb-2">
-              Pickup Location
-            </label>
-            <input
-              type="text"
-              {...register("pickupLocation")}
-              placeholder="Enter pickup address or city, state"
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-              required
-            />
-            {errors.pickupLocation && (
-              <p className="text-red-500">{errors.pickupLocation.message}</p>
-            )}
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium mb-2">
-              Dropoff Location
-            </label>
-            <input
-              type="text"
-              {...register("dropoffLocation")}
-              placeholder="Enter delivery address or city, state"
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-              required
-            />
-            {errors.dropoffLocation && (
-              <p className="text-red-500">{errors.dropoffLocation.message}</p>
-            )}
-          </div>
+          <NominatimLocationInput
+            label="Current Location"
+            onSelect={(address, lat, lng) =>
+              setValue("currentLocation", { address, lat, lng })
+            }
+          />
+          <NominatimLocationInput
+            label="Pickup Location"
+            onSelect={(address, lat, lng) =>
+              setValue("pickupLocation", { address, lat, lng })
+            }
+          />
+          <NominatimLocationInput
+            label="Dropoff Location"
+            onSelect={(address, lat, lng) =>
+              setValue("dropoffLocation", { address, lat, lng })
+            }
+          />
         </div>
 
         <button
@@ -295,7 +199,9 @@ const TripInputForm = () => {
           disabled={createTrip.isPending}
           className="w-full bg-secondary text-white py-3 px-6 rounded-lg hover:bg-gray-600 transition-colors duration-200 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          {createTrip.isPending ? "Planning Route..." : "Plan Route & Generate ELD Logs"}
+          {createTrip.isPending
+            ? "Planning Route..."
+            : "Plan Route & Generate ELD Logs"}
         </button>
       </form>
     </div>
