@@ -1,30 +1,12 @@
 import { Download } from "lucide-react";
 import ELDLogSheet from "../components/ELDLogSheet";
-import { useState } from "react";
-import type { TripPlan } from "../types";
 import Footer from "../components/Footer";
+import { useInputQueryStore } from "../zustand/inputQueryStore";
+import { useTripQueryStore } from "../zustand/tripQueryStore";
 
 const LogPage = () => {
-  const [tripPlan, _] = useState<TripPlan>({
-    tripInput: {
-      currentLocation: { lat: 0, lng: 0, address: "" },
-      pickupLocation: { lat: 0, lng: 0, address: "" },
-      dropoffLocation: { lat: 0, lng: 0, address: "" },
-      currentCycleUsed: 0,
-      driverName: "",
-      coDriverName: "",
-      truckNumber: "",
-      trailerNumber: "",
-      startDate: "",
-    },
-    dailyLogs: [],
-    summary: {
-      totalDays: 0,
-      totalMiles: 0,
-      totalDrivingHours: 0,
-      estimatedFuelCost: 0,
-    },
-  });
+  const { tripPlan } = useTripQueryStore();
+  const { tripInput } = useInputQueryStore();
 
   const handlePrintLogs = () => {
     window.print();
@@ -47,17 +29,39 @@ const LogPage = () => {
             </button>
           </div>
           <p className="text-sm text-gray-600 mb-6">
-            Generated {tripPlan.dailyLogs.length} daily log sheet(s) for your
-            trip. Each sheet complies with DOT regulations and includes detailed
-            duty status tracking.
+            Generated {tripPlan.logs.length} daily log sheet(s) for your trip.
+            Each sheet complies with DOT regulations and includes detailed duty
+            status tracking.
           </p>
         </div>
 
         <div className="print:space-y-0 space-y-6">
-          {tripPlan.dailyLogs.map((dailyLog, index) => (
+          {tripPlan.logs.map((log, index) => (
             <ELDLogSheet
               key={index}
-              dailyLog={dailyLog}
+              dailyLog={{
+                date: new Date().toISOString().split("T")[0],
+                driverName: tripInput.driverName || "John Doe",
+                truckNumber: tripInput.truckNumber || "12345",
+                trailerNumber: tripInput.trailerNumber || "67890",
+                startingLocation:
+                  tripPlan.route.stops[0]?.location.join(", ") || "",
+                endingLocation:
+                  tripPlan.route.stops.at(-1)?.location.join(", ") || "",
+                totalMiles: tripPlan.total_distance_miles,
+                offDutyHours: 0,
+                sleeperHours: 0,
+                drivingHours: 0,
+                onDutyHours: 0,
+                violations: [],
+                entries: log.gridData.timeBlocks.map((block) => ({
+                  time: block.start,
+                  status: block.status.toLowerCase().replace(" ", "_") as any,
+                  location: "N/A",
+                  odometer: 0,
+                  notes: block.status,
+                })),
+              }}
               dayNumber={index + 1}
             />
           ))}

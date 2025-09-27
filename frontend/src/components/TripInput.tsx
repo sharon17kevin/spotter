@@ -4,6 +4,8 @@ import { useForm } from "react-hook-form";
 import { z } from "zod";
 import useCreateTrip from "../hooks/useTrip";
 import NominatimLocationInput from "./NomatimLocationInput";
+import { useTripQueryStore } from "../zustand/tripQueryStore";
+import { useInputQueryStore } from "../zustand/inputQueryStore";
 
 // Define Zod schema
 const schema = z.object({
@@ -59,6 +61,8 @@ const TripInputForm = () => {
 
     try {
       const result = await createTrip.mutateAsync(data);
+      useTripQueryStore.getState().setTripPlan(result);
+      useInputQueryStore.getState().setTripInput(data);
       console.log("Trip created:", result);
     } catch (err) {
       console.error("Error creating trip:", err);

@@ -55,7 +55,6 @@ export interface ELDLogEntry {
   status: 'off_duty' | 'sleeper' | 'driving' | 'on_duty';
   location: string;
   odometer: number;
-  engineHours: number;
   notes?: string;
 }
 
@@ -75,16 +74,41 @@ export interface DailyLog {
   onDutyHours: number;
   violations: string[];
 }
+// export interface DailyLog {
+//   day: number;
+//   gridData: { timeBlocks: { start: string; end: string; status: string }[] };
+//   remarks: string;
+// }
 
+
+// export interface TripPlan {
+//   tripInput?: TripInput;
+//   route?: RouteResult;
+//   dailyLogs: DailyLog[];
+//   summary: {
+//     totalDays: number;
+//     totalMiles: number;
+//     totalDrivingHours: number;
+//     estimatedFuelCost: number;
+//   };
+// }
 
 export interface TripPlan {
-  tripInput: TripInput;
-  route?: RouteResult;
-  dailyLogs: DailyLog[];
-  summary: {
-    totalDays: number;
-    totalMiles: number;
-    totalDrivingHours: number;
-    estimatedFuelCost: number;
+  route: {
+    points: [number, number][];
+    stops: { type: string; location: [number, number] }[];
   };
+  timeline: {
+    start: string;
+    end: string;
+    status: string;
+    day: number;
+  }[];
+  logs: {
+    day: number;
+    gridData: { timeBlocks: { start: string; end: string; status: string }[] };
+    remarks: string;
+  }[];
+  total_distance_miles: number;
+  total_time_hours: number;
 }

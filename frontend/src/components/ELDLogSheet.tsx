@@ -1,6 +1,5 @@
 import React from 'react';
 import type { DailyLog } from '../types';
-import { Clock, MapPin, Truck, User } from 'lucide-react';
 
 interface ELDLogSheetProps {
   dailyLog: DailyLog;
