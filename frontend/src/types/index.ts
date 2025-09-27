@@ -58,22 +58,22 @@ export interface ELDLogEntry {
   notes?: string;
 }
 
-export interface DailyLog {
-  date: string;
-  driverName: string;
-  coDriverName?: string;
-  truckNumber: string;
-  trailerNumber?: string;
-  startingLocation: string;
-  endingLocation: string;
-  totalMiles: number;
-  entries: ELDLogEntry[];
-  offDutyHours: number;
-  sleeperHours: number;
-  drivingHours: number;
-  onDutyHours: number;
-  violations: string[];
-}
+// export interface DailyLog {
+//   date: string;
+//   driverName: string;
+//   coDriverName?: string;
+//   truckNumber: string;
+//   trailerNumber?: string;
+//   startingLocation: string;
+//   endingLocation: string;
+//   totalMiles: number;
+//   entries: ELDLogEntry[];
+//   offDutyHours: number;
+//   sleeperHours: number;
+//   drivingHours: number;
+//   onDutyHours: number;
+//   violations: string[];
+// }
 // export interface DailyLog {
 //   day: number;
 //   gridData: { timeBlocks: { start: string; end: string; status: string }[] };
@@ -93,22 +93,52 @@ export interface DailyLog {
 //   };
 // }
 
+export interface Stop {
+  type: "pickup" | "dropoff" | "fuel" | "rest" | "restart"; 
+  location: [number, number]; // [lat, lng]
+  duration: number; // hours
+  reason: string;
+}
+
+// A block of duty status time (used inside logs + timeline)
+export interface TimeBlock {
+  start: string;   // e.g. "05:30"
+  end: string;     // e.g. "07:00"
+  status: "Off Duty" | "Sleeper" | "Driving" | "On Duty Not Driving";
+  day: number;
+}
+
+export interface DailyTotals {
+  driving: number;   // hours
+  on_duty: number;   // hours (On Duty Not Driving)
+  off_duty: number;  // hours
+  sleeper: number;   // hours
+}
+
+// A per-day log sheet
+export interface DailyLog {
+  day: number;
+  date: string; // "YYYY-MM-DD"
+  gridData: {
+    timeBlocks: TimeBlock[];
+  };
+  totals: DailyTotals;
+  remarks: string;
+}
+export interface TripPlanSummary {
+  total_distance_miles: number;
+  total_driving_hours: number;
+  total_trip_hours: number;
+  estimated_arrival: string; // ISO date
+}
 export interface TripPlan {
   route: {
-    points: [number, number][];
-    stops: { type: string; location: [number, number] }[];
+    points: [number, number][]; // [lat, lon]
+    stops: Stop[];
   };
-  timeline: {
-    start: string;
-    end: string;
-    status: string;
-    day: number;
-  }[];
-  logs: {
-    day: number;
-    gridData: { timeBlocks: { start: string; end: string; status: string }[] };
-    remarks: string;
-  }[];
-  total_distance_miles: number;
-  total_time_hours: number;
+  timeline: TimeBlock[];
+  logs: DailyLog[];
+  summary: TripPlanSummary;
 }
+
+

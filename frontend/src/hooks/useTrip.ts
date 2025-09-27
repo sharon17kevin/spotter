@@ -7,9 +7,9 @@ const useCreateTrip = () => {
   return useMutation<TripPlan, Error, TripInput>({
     mutationFn: async (tripInput: TripInput) => {
       const payload = {
-        current_location: tripInput.currentLocation.address,
-        pickup_location: tripInput.pickupLocation.address,
-        dropoff_location: tripInput.dropoffLocation.address,
+        current_location: tripInput.currentLocation,
+        pickup_location: tripInput.pickupLocation,
+        dropoff_location: tripInput.dropoffLocation,
         current_cycle_used: tripInput.currentCycleUsed,
         driver_name: tripInput.driverName,
         co_driver_name: tripInput.coDriverName,
