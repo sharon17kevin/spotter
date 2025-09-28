@@ -1,4 +1,4 @@
-import { Download } from "lucide-react";
+import { useRef } from "react";
 import ELDLogSheet from "../components/ELDLogSheet";
 import Footer from "../components/Footer";
 import { useTripQueryStore } from "../zustand/tripQueryStore";
@@ -6,10 +6,47 @@ import { useTripQueryStore } from "../zustand/tripQueryStore";
 const LogPage = () => {
   const { tripPlan } = useTripQueryStore();
 
-  const handlePrintLogs = () => {
-    window.print();
-  };
-  console.log("tripPlan logs:", tripPlan.logs);
+  const logSheetRef = useRef<HTMLDivElement>(null);
+
+  // const handleGeneratePDF = async () => {
+  //   if (!logSheetRef.current) return;
+
+  //   try {
+  //     const canvas = await html2canvas(logSheetRef.current, {
+  //       scale: 2, // Higher scale for better quality
+  //       useCORS: true, // If images are from external sources
+  //     });
+
+  //     const imgData = canvas.toDataURL('image/png');
+  //     const pdf = new jsPDF({
+  //       orientation: 'portrait',
+  //       unit: 'mm',
+  //       format: 'a4',
+  //     });
+
+  //     // Calculate dimensions (A4 is 210mm x 297mm)
+  //     const imgWidth = 210;
+  //     const pageHeight = 297;
+  //     const imgHeight = (canvas.height * imgWidth) / canvas.width;
+  //     let heightLeft = imgHeight;
+  //     let position = 0;
+
+  //     pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+  //     heightLeft -= pageHeight;
+
+  //     while (heightLeft > 0) {
+  //       position = heightLeft - imgHeight;
+  //       pdf.addPage();
+  //       pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+  //       heightLeft -= pageHeight;
+  //     }
+
+  //     pdf.save(`eld_log_day.pdf`);
+  //   } catch (error) {
+  //     console.error('Error generating PDF:', error);
+  //     alert('Failed to generate PDF. Check console for details.');
+  //   }
+  // };
 
   return (
     <>
@@ -19,13 +56,13 @@ const LogPage = () => {
             <h3 className="text-lg font-medium text-gray-900">
               ELD Daily Log Sheets
             </h3>
-            <button
-              onClick={handlePrintLogs}
+            {/* <button
+              onClick={handleGeneratePDF}
               className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors duration-200 flex items-center"
             >
               <Download className="h-4 w-4 mr-2" />
               Print Logs
-            </button>
+            </button> */}
           </div>
           <p className="text-sm text-gray-600 mb-6">
             Generated {tripPlan.logs.length} daily log sheet(s) for your trip.
@@ -34,7 +71,7 @@ const LogPage = () => {
           </p>
         </div>
 
-        <div className="print:space-y-0 space-y-6">
+        <div className="print:space-y-0 space-y-6" ref={logSheetRef}>
           {tripPlan.logs.map((log, index) => (
             <ELDLogSheet
               key={index}
