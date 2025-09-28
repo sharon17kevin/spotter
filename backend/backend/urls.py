@@ -19,7 +19,7 @@ from django.http import JsonResponse
 from django.urls import path, include
 
 urlpatterns = [
-    path('admin/', admin.site.urls),
-    path('api/', include("trips.urls")),
-    path('', lambda request: JsonResponse({"status": "ok"})),  # healthcheck
+    path("admin/", admin.site.urls),
+    path("api/", include("trips.urls")),
+    path("", lambda request: JsonResponse({"status": "ok"})),  # healthcheck
 ]
