@@ -58,41 +58,6 @@ export interface ELDLogEntry {
   notes?: string;
 }
 
-// export interface DailyLog {
-//   date: string;
-//   driverName: string;
-//   coDriverName?: string;
-//   truckNumber: string;
-//   trailerNumber?: string;
-//   startingLocation: string;
-//   endingLocation: string;
-//   totalMiles: number;
-//   entries: ELDLogEntry[];
-//   offDutyHours: number;
-//   sleeperHours: number;
-//   drivingHours: number;
-//   onDutyHours: number;
-//   violations: string[];
-// }
-// export interface DailyLog {
-//   day: number;
-//   gridData: { timeBlocks: { start: string; end: string; status: string }[] };
-//   remarks: string;
-// }
-
-
-// export interface TripPlan {
-//   tripInput?: TripInput;
-//   route?: RouteResult;
-//   dailyLogs: DailyLog[];
-//   summary: {
-//     totalDays: number;
-//     totalMiles: number;
-//     totalDrivingHours: number;
-//     estimatedFuelCost: number;
-//   };
-// }
-
 export interface Stop {
   type: "pickup" | "dropoff" | "fuel" | "rest" | "restart"; 
   location: [number, number]; // [lat, lng]
@@ -119,9 +84,7 @@ export interface DailyTotals {
 export interface DailyLog {
   day: number;
   date: string; // "YYYY-MM-DD"
-  gridData: {
-    timeBlocks: TimeBlock[];
-  };
+  timeBlocks: TimeBlock[];
   totals: DailyTotals;
   remarks: string;
 }

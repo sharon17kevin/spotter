@@ -1,16 +1,15 @@
 import { Download } from "lucide-react";
 import ELDLogSheet from "../components/ELDLogSheet";
 import Footer from "../components/Footer";
-import { useInputQueryStore } from "../zustand/inputQueryStore";
 import { useTripQueryStore } from "../zustand/tripQueryStore";
 
 const LogPage = () => {
   const { tripPlan } = useTripQueryStore();
-  const { tripInput } = useInputQueryStore();
 
   const handlePrintLogs = () => {
     window.print();
   };
+  console.log("tripPlan logs:", tripPlan.logs);
 
   return (
     <>
@@ -39,29 +38,7 @@ const LogPage = () => {
           {tripPlan.logs.map((log, index) => (
             <ELDLogSheet
               key={index}
-              dailyLog={{
-                date: new Date().toISOString().split("T")[0],
-                driverName: tripInput.driverName || "John Doe",
-                truckNumber: tripInput.truckNumber || "12345",
-                trailerNumber: tripInput.trailerNumber || "67890",
-                startingLocation:
-                  tripPlan.route.stops[0]?.location.join(", ") || "",
-                endingLocation:
-                  tripPlan.route.stops.at(-1)?.location.join(", ") || "",
-                totalMiles: tripPlan.total_distance_miles,
-                offDutyHours: 0,
-                sleeperHours: 0,
-                drivingHours: 0,
-                onDutyHours: 0,
-                violations: [],
-                entries: log.gridData.timeBlocks.map((block) => ({
-                  time: block.start,
-                  status: block.status.toLowerCase().replace(" ", "_") as any,
-                  location: "N/A",
-                  odometer: 0,
-                  notes: block.status,
-                })),
-              }}
+              dailyLog={log}
               dayNumber={index + 1}
             />
           ))}

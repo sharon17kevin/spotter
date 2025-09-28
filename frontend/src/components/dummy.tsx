@@ -1,183 +1,201 @@
-import React, { useRef } from 'react';
-import { MapContainer, TileLayer, Marker, Popup, Polyline } from 'react-leaflet';
-import type { RouteResult, TripInput } from '../types';
-import { MapPin, Clock, Fuel, Bed } from 'lucide-react';
-import 'leaflet/dist/leaflet.css';
-import L from 'leaflet';
+import React from 'react';
+import type { DailyLog } from '../types';
 
-// Fix for default markers in react-leaflet
-delete (L.Icon.Default.prototype as any)._getIconUrl;
-L.Icon.Default.mergeOptions({
-  iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png',
-  iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png',
-  shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
-});
-
-interface RouteMapProps {
-  tripInput: TripInput;
-  route: RouteResult;
+interface ELDLogSheetProps {
+  dailyLog: DailyLog;
+  dayNumber: number;
 }
 
-const RouteMap: React.FC<RouteMapProps> = ({ tripInput, route }) => {
-  const mapRef = useRef<L.Map>(null);
-
-  const getStopIcon = (type: string) => {
-    switch (type) {
-      case 'required_break':
-        return <Clock className="h-4 w-4 text-orange-500" />;
-      case 'fuel_stop':
-        return <Fuel className="h-4 w-4 text-blue-500" />;
-      case 'overnight':
-        return <Bed className="h-4 w-4 text-purple-500" />;
-      default:
-        return <MapPin className="h-4 w-4 text-gray-500" />;
-    }
+const ELDLogSheet: React.FC<ELDLogSheetProps> = ({ dailyLog, dayNumber }) => {
+  const hours = Array.from({ length: 24 }, (_, i) => i);
+  const statusColors = {
+    off_duty: '#10b981',
+    sleeper: '#8b5cf6',
+    driving: '#dc2626',
+    on_duty: '#f59e0b',
   };
 
-  const createCustomIcon = (color: string) => {
-    return L.divIcon({
-      html: `<div style="background-color: ${color}; width: 20px; height: 20px; border-radius: 50%; border: 2px solid white; box-shadow: 0 2px 4px rgba(0,0,0,0.3);"></div>`,
-      className: 'custom-marker',
-      iconSize: [20, 20],
-      iconAnchor: [10, 10],
+  const statusLabels = {
+    off_duty: 'Off Duty',
+    sleeper: 'Sleeper Berth',
+    driving: 'Driving',
+    on_duty: 'On Duty (Not Driving)',
+  };
+
+  // Create hourly grid data
+  const createHourlyGrid = () => {
+    const grid = Array(24).fill('off_duty');
+    
+    dailyLog.entries.forEach((entry, index) => {
+      const startTime = new Date(`${dailyLog.date}T${entry.time}`);
+      const startHour = startTime.getHours() + startTime.getMinutes() / 60;
+      
+      const nextEntry = dailyLog.entries[index + 1];
+      const endTime = nextEntry 
+        ? new Date(`${dailyLog.date}T${nextEntry.time}`)
+        : new Date(`${dailyLog.date}T23:59`);
+      const endHour = endTime.getHours() + endTime.getMinutes() / 60;
+      
+      for (let hour = Math.floor(startHour); hour < Math.ceil(endHour) && hour < 24; hour++) {
+        grid[hour] = entry.status;
+      }
     });
+    
+    return grid;
   };
 
-  // Calculate bounds to fit all points
-  const bounds = [
-    [tripInput.currentLocation.lat, tripInput.currentLocation.lng],
-    [tripInput.pickupLocation.lat, tripInput.pickupLocation.lng],
-    [tripInput.dropoffLocation.lat, tripInput.dropoffLocation.lng],
-    ...route.restStops.map(stop => [stop.location.lat, stop.location.lng])
-  ] as [number, number][];
-
-  // Create route line coordinates
-  const routeCoordinates = route.segments.flatMap(segment => segment.coordinates);
+  const hourlyGrid = createHourlyGrid();
 
   return (
-    <div className="bg-white rounded-lg shadow-lg overflow-hidden">
-      <div className="p-4 bg-gray-50 border-b">
-        <h3 className="text-lg font-medium text-gray-900 mb-2">Route Overview</h3>
+    <div className="bg-white border-2 border-gray-300 p-6 mb-6 print:mb-4 print:p-4">
+      {/* Header */}
+      <div className="border-b-2 border-gray-800 pb-4 mb-4">
+        <div className="flex justify-between items-start mb-4">
+          <div>
+            <h2 className="text-xl font-bold">DRIVER'S DAILY LOG</h2>
+            <p className="text-sm text-gray-600">Day {dayNumber} - {new Date(dailyLog.date).toLocaleDateString()}</p>
+          </div>
+          <div className="text-right">
+            <p className="text-sm"><strong>DOT Regulation 395.8</strong></p>
+            <p className="text-xs text-gray-600">Electronic Logging Device</p>
+          </div>
+        </div>
+
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
           <div>
-            <p className="text-gray-600">Total Distance</p>
-            <p className="font-semibold">{route.totalDistance.toFixed(0)} miles</p>
+            <label className="block text-gray-600">Driver Name:</label>
+            <p className="font-medium border-b border-gray-300 pb-1">{dailyLog.driverName}</p>
           </div>
           <div>
-            <p className="text-gray-600">Driving Time</p>
-            <p className="font-semibold">{route.totalDrivingTime.toFixed(1)} hours</p>
+            <label className="block text-gray-600">Co-Driver:</label>
+            <p className="font-medium border-b border-gray-300 pb-1">{dailyLog.coDriverName || 'N/A'}</p>
           </div>
           <div>
-            <p className="text-gray-600">Total Trip Time</p>
-            <p className="font-semibold">{route.totalTripTime.toFixed(1)} hours</p>
+            <label className="block text-gray-600">Truck #:</label>
+            <p className="font-medium border-b border-gray-300 pb-1">{dailyLog.truckNumber}</p>
           </div>
           <div>
-            <p className="text-gray-600">Est. Arrival</p>
-            <p className="font-semibold">{new Date(route.estimatedArrival).toLocaleDateString()}</p>
+            <label className="block text-gray-600">Trailer #:</label>
+            <p className="font-medium border-b border-gray-300 pb-1">{dailyLog.trailerNumber || 'N/A'}</p>
           </div>
         </div>
       </div>
 
-      <div className='h-[500px]'>
-        <MapContainer
-          ref={mapRef}
-          bounds={bounds}
-          style={{ height: '100%', width: '100%' }}
-          scrollWheelZoom={true}
-        >
-          <TileLayer
-            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-          />
-
-          {/* Route line */}
-          {routeCoordinates.length > 0 && (
-            <Polyline
-              positions={routeCoordinates}
-              color="#2563eb"
-              weight={4}
-              opacity={0.7}
-            />
-          )}
-
-          {/* Current location */}
-          <Marker
-            position={[tripInput.currentLocation.lat, tripInput.currentLocation.lng]}
-            icon={createCustomIcon('#10b981')}
-          >
-            <Popup>
-              <div>
-                <h4 className="font-semibold">Current Location</h4>
-                <p className="text-sm">{tripInput.currentLocation.address}</p>
-              </div>
-            </Popup>
-          </Marker>
-
-          {/* Pickup location */}
-          <Marker
-            position={[tripInput.pickupLocation.lat, tripInput.pickupLocation.lng]}
-            icon={createCustomIcon('#f59e0b')}
-          >
-            <Popup>
-              <div>
-                <h4 className="font-semibold">Pickup Location</h4>
-                <p className="text-sm">{tripInput.pickupLocation.address}</p>
-              </div>
-            </Popup>
-          </Marker>
-
-          {/* Dropoff location */}
-          <Marker
-            position={[tripInput.dropoffLocation.lat, tripInput.dropoffLocation.lng]}
-            icon={createCustomIcon('#dc2626')}
-          >
-            <Popup>
-              <div>
-                <h4 className="font-semibold">Delivery Location</h4>
-                <p className="text-sm">{tripInput.dropoffLocation.address}</p>
-              </div>
-            </Popup>
-          </Marker>
-
-          {/* Rest stops */}
-          {route.restStops.map((stop, index) => (
-            <Marker
-              key={index}
-              position={[stop.location.lat, stop.location.lng]}
-              icon={createCustomIcon('#8b5cf6')}
-            >
-              <Popup>
-                <div>
-                  <h4 className="font-semibold flex items-center">
-                    {getStopIcon(stop.type)}
-                    <span className="ml-2">{stop.type.replace('_', ' ').toUpperCase()}</span>
-                  </h4>
-                  <p className="text-sm">{stop.location.address}</p>
-                  <p className="text-sm">Duration: {stop.duration} hours</p>
-                  <p className="text-sm">{stop.reason}</p>
-                </div>
-              </Popup>
-            </Marker>
+      {/* Status Legend */}
+      <div className="mb-4">
+        <h3 className="text-sm font-semibold mb-2">DUTY STATUS</h3>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs">
+          {Object.entries(statusLabels).map(([status, label]) => (
+            <div key={status} className="flex items-center">
+              <div 
+                className="w-4 h-4 mr-2 border border-gray-400"
+                style={{ backgroundColor: statusColors[status as keyof typeof statusColors] }}
+              ></div>
+              <span>{label}</span>
+            </div>
           ))}
-        </MapContainer>
+        </div>
       </div>
 
-      <div className="p-4 bg-gray-50 border-t">
-        <h4 className="font-medium text-gray-900 mb-3">Planned Stops</h4>
-        <div className="space-y-2">
-          {route.restStops.map((stop, index) => (
-            <div key={index} className="flex items-center justify-between p-2 bg-white rounded border">
-              <div className="flex items-center">
-                {getStopIcon(stop.type)}
-                <div className="ml-2">
-                  <p className="text-sm font-medium">{stop.type.replace('_', ' ').toUpperCase()}</p>
-                  <p className="text-xs text-gray-600">{stop.location.address}</p>
+      {/* Time Grid */}
+      <div className="mb-4">
+        <div className="border border-gray-400">
+          {/* Hour headers */}
+          <div className="grid grid-cols-25 border-b border-gray-400">
+            <div className="p-1 text-xs font-semibold border-r border-gray-400 bg-gray-100">Time</div>
+            {hours.map(hour => (
+              <div key={hour} className="p-1 text-xs text-center border-r border-gray-400 bg-gray-100">
+                {hour.toString().padStart(2, '0')}
+              </div>
+            ))}
+          </div>
+
+          {/* Status rows */}
+          {Object.entries(statusLabels).map(([status, label]) => (
+            <div key={status} className="grid grid-cols-25 border-b border-gray-400">
+              <div className="p-2 text-xs font-medium border-r border-gray-400 bg-gray-50">
+                {label}
+              </div>
+              {hours.map(hour => (
+                <div 
+                  key={hour} 
+                  className="h-8 border-r border-gray-400 relative"
+                  style={{ 
+                    backgroundColor: hourlyGrid[hour] === status 
+                      ? statusColors[status as keyof typeof statusColors] 
+                      : 'transparent' 
+                  }}
+                >
+                  {hourlyGrid[hour] === status && (
+                    <div className="absolute inset-0 opacity-80"></div>
+                  )}
                 </div>
-              </div>
-              <div className="text-right">
-                <p className="text-sm font-medium">{stop.duration}h</p>
-                <p className="text-xs text-gray-600">{stop.reason}</p>
-              </div>
+              ))}
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Summary */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4 text-sm">
+        <div className="border border-gray-300 p-2">
+          <label className="block text-gray-600">Off Duty:</label>
+          <p className="font-bold">{dailyLog.offDutyHours.toFixed(2)} hrs</p>
+        </div>
+        <div className="border border-gray-300 p-2">
+          <label className="block text-gray-600">Sleeper:</label>
+          <p className="font-bold">{dailyLog.sleeperHours.toFixed(2)} hrs</p>
+        </div>
+        <div className="border border-gray-300 p-2">
+          <label className="block text-gray-600">Driving:</label>
+          <p className="font-bold">{dailyLog.drivingHours.toFixed(2)} hrs</p>
+        </div>
+        <div className="border border-gray-300 p-2">
+          <label className="block text-gray-600">On Duty:</label>
+          <p className="font-bold">{dailyLog.onDutyHours.toFixed(2)} hrs</p>
+        </div>
+      </div>
+
+      {/* Locations */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4 text-sm">
+        <div>
+          <label className="block text-gray-600">Starting Location:</label>
+          <p className="font-medium border-b border-gray-300 pb-1">{dailyLog.startingLocation}</p>
+        </div>
+        <div>
+          <label className="block text-gray-600">Ending Location:</label>
+          <p className="font-medium border-b border-gray-300 pb-1">{dailyLog.endingLocation}</p>
+        </div>
+      </div>
+
+      <div className="text-sm">
+        <label className="block text-gray-600">Total Miles:</label>
+        <p className="font-bold text-lg">{dailyLog.totalMiles.toFixed(0)} miles</p>
+      </div>
+
+      {/* Violations */}
+      {dailyLog.violations.length > 0 && (
+        <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded">
+          <h4 className="text-sm font-semibold text-red-800 mb-2">VIOLATIONS:</h4>
+          <ul className="text-xs text-red-700">
+            {dailyLog.violations.map((violation, index) => (
+              <li key={index}>• {violation}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {/* Log Entries Detail */}
+      <div className="mt-4">
+        <h4 className="text-sm font-semibold mb-2">DETAILED LOG ENTRIES</h4>
+        <div className="space-y-1 text-xs">
+          {dailyLog.entries.map((entry, index) => (
+            <div key={index} className="grid grid-cols-5 gap-2 py-1 border-b border-gray-200">
+              <div>{entry.time}</div>
+              <div className="capitalize">{entry.status.replace('_', ' ')}</div>
+              <div>{entry.location}</div>
+              <div>{entry.odometer.toLocaleString()} mi</div>
+              <div>{entry.notes || '-'}</div>
             </div>
           ))}
         </div>
@@ -186,4 +204,4 @@ const RouteMap: React.FC<RouteMapProps> = ({ tripInput, route }) => {
   );
 };
 
-export default RouteMap;
+export default ELDLogSheet;

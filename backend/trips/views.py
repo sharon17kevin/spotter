@@ -6,9 +6,11 @@ from django.utils.timezone import now
 import requests
 from reportlab.lib.pagesizes import letter
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table
-from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.lib import colors
 from django.http import HttpResponse
+from django.core.exceptions import ObjectDoesNotExist
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib.units import inch
 
 from .models import TripPlan
 
@@ -174,10 +176,6 @@ def build_summary(total_distance_miles, total_driving_hours, current_time):
         "estimated_arrival": current_time.isoformat()
     }
 
-
-# ------------------ MAIN VIEW ------------------
-
-# trips/views.py
 @api_view(["POST"])
 def plan_trip(request):
     try:
@@ -402,39 +400,145 @@ def plan_trip(request):
 @api_view(['GET'])
 def generate_log_pdf(request, trip_id, day):
     try:
+        # Fetch TripPlan and validate
         trip = TripPlan.objects.get(id=trip_id)
-        plan = trip.plan_data
-        logs = plan.get("logs", [])
-
-        # Find the day log
-        day_log = next((log for log in logs if log["day"] == day), None)
+        plan_data = trip.plan_data
+        logs = plan_data.get("logs", [])
+        day_log = next((log for log in logs if log.get("day") == day), None)
         if not day_log:
             return Response({"error": "Day log not found"}, status=404)
 
+        # Prepare response
         response = HttpResponse(content_type='application/pdf')
-        response['Content-Disposition'] = f'attachment; filename="log_day_{day}.pdf"'
-        doc = SimpleDocTemplate(response, pagesize=letter)
+        response['Content-Disposition'] = f'attachment; filename="eld_log_day_{day}.pdf"'
+        doc = SimpleDocTemplate(response, pagesize=letter, rightMargin=72, leftMargin=72, topMargin=72, bottomMargin=72)
         styles = getSampleStyleSheet()
         story = []
 
-        story.append(Paragraph(f"Driver's Daily Log - Day {day}", styles['Heading1']))
-        story.append(Paragraph(f"Driver: {trip.driver_name}", styles['Normal']))
-        story.append(Paragraph(f"Truck: {trip.truck_number}", styles['Normal']))
+        # Custom styles
+        title_style = ParagraphStyle(
+            name='TitleStyle',
+            parent=styles['Heading1'],
+            fontSize=18,
+            spaceAfter=12
+        )
+        normal_style = ParagraphStyle(
+            name='NormalStyle',
+            parent=styles['Normal'],
+            fontSize=10
+        )
+
+        # Header
+        story.append(Paragraph(f"DRIVER'S DAILY LOG - DAY {day}", title_style))
+        story.append(Paragraph(f"Date: {day_log.get('date', 'N/A')}", normal_style))
+        story.append(Spacer(1, 12))
+        story.append(Paragraph(f"Driver: {trip.driver_name or 'N/A'}", normal_style))
+        story.append(Paragraph(f"Co-Driver: {trip.co_driver_name or 'N/A'}", normal_style))
+        story.append(Paragraph(f"Truck #: {trip.truck_number or 'N/A'}", normal_style))
+        story.append(Paragraph(f"Trailer #: {trip.trailer_number or 'N/A'}", normal_style))
         story.append(Spacer(1, 12))
 
-        # Build table from saved time blocks
-        data = [['Start', 'End', 'Status']]
-        for block in day_log["gridData"]["timeBlocks"]:
-            data.append([block["start"], block["end"], block["status"]])
-
-        table = Table(data, colWidths=[100, 100, 300])
-        story.append(table)
+        # Status Legend
+        story.append(Paragraph("DUTY STATUS LEGEND", styles['Heading2']))
+        legend_data = [
+            ['Color', 'Status'],
+            ['#10b981', 'Off Duty'],
+            ['#8b5cf6', 'Sleeper Berth'],
+            ['#dc2626', 'Driving'],
+            ['#f59e0b', 'On Duty (Not Driving)']
+        ]
+        legend_table = Table(legend_data, colWidths=[0.5*inch, 2*inch], style=[
+            ('BACKGROUND', (0, 0), (0, -1), colors.grey),
+            ('TEXTCOLOR', (0, 0), (0, -1), colors.black),
+            ('ALIGN', (0, 0), (0, -1), 'CENTER'),
+            ('BACKGROUND', (1, 1), (1, -1), colors.white),
+            ('TEXTCOLOR', (1, 1), (1, -1), colors.black),
+            ('GRID', (0, 0), (-1, -1), 1, colors.black)
+        ])
+        story.append(legend_table)
         story.append(Spacer(1, 12))
 
-        story.append(Paragraph(day_log["remarks"], styles['Normal']))
+        # 24-Hour Grid
+        hours = list(range(24))
+        grid_data = [['Time'] + [f"{h:02d}" for h in hours]]
+        statuses = ['Off Duty', 'Sleeper Berth', 'Driving', 'On Duty (Not Driving)']
+        for status in statuses:
+            row = [status]
+            hourly_grid = [status] * 24  # Default to the status
+            time_blocks = day_log.get("gridData", {}).get("timeBlocks", [])
+            for block in time_blocks:
+                start_parts = block.get("start", "00:00").split(':')
+                end_parts = block.get("end", "00:00").split(':')
+                start_hour = int(start_parts[0]) + (int(start_parts[1]) / 60 if len(start_parts) > 1 else 0)
+                end_hour = int(end_parts[0]) + (int(end_parts[1]) / 60 if len(end_parts) > 1 else 0)
+                for h in range(int(start_hour), min(int(end_hour) + 1, 24)):
+                    if 0 <= h < 24:
+                        hourly_grid[h] = block.get("status", "Off Duty")
+            row.extend(hourly_grid)
+            grid_data.append(row)
 
+        grid_table = Table(grid_data, colWidths=[0.5*inch] + [0.25*inch] * 24, style=[
+            ('BACKGROUND', (0, 0), (-1, 0), colors.lightgrey),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.black),
+            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+            ('GRID', (0, 0), (-1, -1), 0.5, colors.black),
+            ('BACKGROUND', (1, 1), (-1, -1), colors.white),
+        ])
+        for i, status in enumerate(statuses, 1):
+            for j in range(1, 25):
+                if grid_data[i][j] == status:
+                    grid_table.setStyle([
+                        ('BACKGROUND', (j, i), (j, i), status_colors.get(status, colors.white))
+                    ])
+        story.append(grid_table)
+        story.append(Spacer(1, 12))
+
+        # Summary
+        totals = day_log.get("totals", {"driving": 0, "on_duty": 0, "off_duty": 0, "sleeper": 0})
+        summary_data = [
+            ['Category', 'Hours'],
+            ['Off Duty', f"{totals.get('off_duty', 0):.2f}"],
+            ['Sleeper Berth', f"{totals.get('sleeper', 0):.2f}"],
+            ['Driving', f"{totals.get('driving', 0):.2f}"],
+            ['On Duty (Not Driving)', f"{totals.get('on_duty', 0):.2f}"]
+        ]
+        summary_table = Table(summary_data, colWidths=[1.5*inch, 1*inch], style=[
+            ('BACKGROUND', (0, 0), (-1, 0), colors.lightgrey),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.black),
+            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+            ('GRID', (0, 0), (-1, -1), 1, colors.black)
+        ])
+        story.append(summary_table)
+        story.append(Spacer(1, 12))
+
+        # Locations
+        story.append(Paragraph("Locations", styles['Heading2']))
+        story.append(Paragraph(f"Starting: {trip.plan_data.get('current_location', {}).get('address', 'N/A')}", normal_style))
+        story.append(Paragraph(f"Ending: {trip.plan_data.get('dropoff_location', {}).get('address', 'N/A')}", normal_style))
+        story.append(Spacer(1, 12))
+
+        # Total Miles
+        total_miles = trip.plan_data.get("summary", {}).get("total_distance_miles", 0) / len(logs or [1])  # Approx per day
+        story.append(Paragraph(f"Total Miles: {total_miles:.0f} miles", normal_style))
+        story.append(Spacer(1, 12))
+
+        # Remarks
+        story.append(Paragraph("Remarks", styles['Heading2']))
+        story.append(Paragraph(day_log.get("remarks", "No remarks"), normal_style))
+
+        # Build the PDF
         doc.build(story)
         return response
 
-    except TripPlan.DoesNotExist:
+    except ObjectDoesNotExist:
         return Response({"error": "Trip not found"}, status=404)
+    except Exception as e:
+        return Response({"error": f"Error generating PDF: {str(e)}"}, status=500)
+
+# Define status_colors globally or within the function
+status_colors = {
+    'Off Duty': colors.green,
+    'Sleeper Berth': colors.purple,
+    'Driving': colors.red,
+    'On Duty (Not Driving)': colors.yellow
+}
